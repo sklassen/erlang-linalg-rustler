@@ -1,0 +1,13 @@
+{application, linalg_ruslin,
+ [
+  {description, ""},
+  {vsn, "0.1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { linalg_ruslin, []}},
+  {env, []}
+ ]}.
+
