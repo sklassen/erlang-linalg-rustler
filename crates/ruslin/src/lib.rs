@@ -22,10 +22,10 @@ fn m2v(d: DMatrix<f64>) -> Vec<Vec<f64>> {
     ret
 }
 
-
 #[rustler::nif]
-fn version() -> String {
-    "Version 0.1".to_string()
+fn version() -> Vec<u8> {
+    let version="Version 0.1";
+    return version.chars().map(|x| x as u8).collect();
 }
 
 #[rustler::nif]
@@ -52,22 +52,14 @@ fn inv(m: Vec<Vec<f64>>) -> Vec<Vec<f64>> {
     }
 }
 
-//#[rustler::nif]
-//fn svd(m: Vec<Vec<f64>>) -> Vec<Vec<f64>> {
-//    match v2m(m).try_svd(true, true, 0.000001, 20)
-//    {
-//        Some(m) => m2v(m),
-//        None => vec![],
-//    }
-//}
-
-//fn svd(m: DMatrix<f64>) -> Result<SVD<f64, Dynamic, Dynamic>, Error> {
-//    match m.try_svd(true, true, 0.000001, 20) {
-//        Some(im) => Ok(im),
-//        None => make_error("no convergence"),
-//    }
-//}
-
+#[rustler::nif]
+fn svd(m: Vec<Vec<f64>>) -> (Vec<Vec<f64>>,Vec<f64>,Vec<Vec<f64>>) {
+    match v2m(m).try_svd(true, true, 0.000001, 20)
+    {
+        Some(SVD{u:Some(u),singular_values:s,v_t:Some(v_t)}) => (m2v(u),Vec::from(s.as_slice()),m2v(v_t)),
+        _ => (vec![],vec![],vec![]),
+    }
+}
 
 #[rustler::nif]
 fn sum(xs: Vec<f64>) -> f64 {
@@ -79,4 +71,4 @@ fn add(a: i64, b: i64) -> i64 {
     a + b
 }
 
-rustler::init!("linalg_ruslin", [version,add,sum,transpose,matmul,inv]);
+rustler::init!("linalg_ruslin", [version,add,sum,transpose,matmul,inv,svd]);
