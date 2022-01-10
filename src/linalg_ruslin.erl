@@ -1,5 +1,5 @@
 -module(linalg_ruslin).
--export([version/0,add/2,sum/1,inv/1,matmul/2,transpose/1,svd/1]).
+-export([version/0,add/2,sum/1,inv/1,matmul/2,transpose/1,svd/1,diag/1]).
 
 -on_load(init/0).
 
@@ -24,6 +24,9 @@ transpose(_) ->
         exit(nif_library_not_loaded).
 
 inv(_) -> 
+        exit(nif_library_not_loaded).
+
+diag(_) -> 
         exit(nif_library_not_loaded).
 
 svd(_) -> 

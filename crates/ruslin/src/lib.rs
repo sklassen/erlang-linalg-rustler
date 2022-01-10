@@ -1,8 +1,10 @@
-extern crate nalgebra;
+extern crate rustler;
+use rustler::{Encoder, Env,Term,NifResult};
+//use rustler::{NifEnv, NifTerm, NifError, NifDecoder, NifEncoder, NifResult};
 
-pub use nalgebra::base::dimension::Dynamic;
-pub use nalgebra::base::DMatrix;
-pub use nalgebra::linalg::SVD;
+extern crate nalgebra;
+use nalgebra::base::DMatrix;
+use nalgebra::linalg::SVD;
 
 
 fn v2m(m: Vec<Vec<f64>>) -> DMatrix<f64> {
@@ -71,4 +73,12 @@ fn add(a: i64, b: i64) -> i64 {
     a + b
 }
 
-rustler::init!("linalg_ruslin", [version,add,sum,transpose,matmul,inv,svd]);
+#[rustler::nif]
+fn diag<'a>(env: Env<'a>,_args: Term<'a>) -> NifResult<Term<'a>> {
+    //let num1: f64 = args.decode::<f64>()?;
+    //Ok((num1+1.0).encode(env))
+    //Ok(args)
+    Ok(env.error_tuple("test failed".encode(env)))
+}
+
+rustler::init!("linalg_ruslin", [version,add,sum,transpose,matmul,inv,svd,diag]);
