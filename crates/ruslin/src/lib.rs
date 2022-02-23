@@ -1,5 +1,5 @@
 extern crate rustler;
-use rustler::{Encoder, Env, Term, NifResult};
+use rustler::{Encoder, Env, Term, Error, ListIterator, NifResult};
 //use rustler::{NifEnv, NifTerm, NifError, NifDecoder, NifEncoder, NifResult};
 
 extern crate nalgebra;
@@ -18,20 +18,20 @@ fn version<'a>(
 #[rustler::nif]
 fn transpose<'a>(
     env: Env<'a>,
-    m: Vec<Vec<f64>>
+    m: Term
 ) -> NifResult<Term<'a>> {
 
-    Ok(m2t(env, t2m(m).transpose()))
+    Ok(m2t(env, t2m(m)?.transpose()))
 }
 
 #[rustler::nif]
 fn matmul<'a>(
     env: Env<'a>,
-    a: Vec<Vec<f64>>, 
-    b: Vec<Vec<f64>>
+    a: Term,
+    b: Term,
 ) -> NifResult<Term<'a>> {
-    let a = t2m(a);
-    let b = t2m(b);
+    let a = t2m(a)?;
+    let b = t2m(b)?;
     match a.nrows() == b.ncols() || b.nrows() == a.ncols() {
         true => Ok(m2t(env, a * b)),
         false => Ok(env.error_tuple(format!("{}", "bad size").encode(env)))
@@ -41,9 +41,9 @@ fn matmul<'a>(
 #[rustler::nif]
 fn inv<'a>(
     env: Env<'a>,
-    m: Vec<Vec<f64>>
+    m: Term,
 ) -> NifResult<Term<'a>> {
-    match t2m(m).try_inverse()
+    match t2m(m)?.try_inverse()
     {
         Some(m) => Ok(m2t(env,m)),
         None => Ok(env.error_tuple(format!("{}", "bad inv").encode(env)))
@@ -53,9 +53,9 @@ fn inv<'a>(
 #[rustler::nif]
 fn svd<'a>(
     env: Env<'a>,
-    m: Vec<Vec<f64>>
-) -> NifResult<Term> {
-    match t2m(m).try_svd(true, true, 0.000001, 20)
+    m: Term,
+) -> NifResult<Term<'a>> {
+    match t2m(m)?.try_svd(true, true, 0.000001, 20)
     {
         Some(SVD{u:Some(u),singular_values:s,v_t:Some(v_t)}) => Ok((m2t(env,u),Vec::from(s.as_slice()),m2t(env,v_t)).encode(env)),
         _ => Ok(env.error_tuple(format!("{}", "bad svd").encode(env)))
@@ -80,14 +80,6 @@ fn diag<'a>(env: Env<'a>,_args: Term<'a>) -> NifResult<Term<'a>> {
     Ok(env.error_tuple("test failed".encode(env)))
 }
 
-fn t2m(m: Vec<Vec<f64>>) -> DMatrix<f64> {
-    let nrows=m.len();
-    let ncols=m[0].len();
-    let numitems=nrows*ncols;
-
-    DMatrix::from_row_slice(nrows, ncols, &m.concat()[..numitems])
-}
-
 fn m2t(env: Env, matrix:DMatrix<f64>) -> Term {
     let ncols = matrix.ncols();
     let mut terms = Vec::new();
@@ -96,6 +88,45 @@ fn m2t(env: Env, matrix:DMatrix<f64>) -> Term {
     }
     return terms.encode(env);
 }
+
+fn t2m(term: Term) -> NifResult<DMatrix<f64>> {
+    let matrix: Vec<Vec<f64>> = term.decode::<ListIterator>()?.map(|x| f_vec(x)).collect::<NifResult<Vec<Vec<f64>>>>()?;
+    let nrows = matrix.len();
+    let ncols = matrix[0].len();
+    let rowwise = flatten(matrix);
+
+    return Ok(DMatrix::from_row_slice(nrows, ncols, &rowwise));
+}
+
+fn flatten<T>(nested: Vec<Vec<T>>) -> Vec<T> {
+    nested.into_iter().flatten().collect()
+}
+
+fn i(term: Term) -> NifResult<i32> {
+    match term.decode::<i32>() {
+        Ok(i) => Ok(i),
+        Err(_) => Err(Error::BadArg),
+    }
+}
+
+fn f(term: Term) -> NifResult<f64> {
+    match term.decode::<f64>() {
+        Ok(f) => Ok(f),
+        Err(_) => Ok(i(term)? as f64),
+    }
+}
+
+fn f_vec(term: Term) -> NifResult<Vec<f64>> {
+   let f_arr:Vec<f64> =  match term.list_length() {
+       Ok(_) => term
+               .decode::<ListIterator>()?
+               .map(|x| f(x))
+               .collect::<NifResult<Vec<f64>>>()?,
+       Err(_) => vec![f(term)?],
+   };
+   return Ok(f_arr);
+}
+
 
 
 rustler::init!("linalg_ruslin", [
